@@ -20,6 +20,7 @@ import java.nio.charset.Charset;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import org.jboss.netty.channel.Channel;
@@ -45,15 +46,41 @@ public class OsmAndProtocolDecoder extends BaseProtocolDecoder {
             Channel channel, SocketAddress remoteAddress, Object msg)
             throws Exception {
 
+        List<Position> positions = new LinkedList<>();
+
         HttpRequest request = (HttpRequest) msg;
         QueryStringDecoder decoder = new QueryStringDecoder(request.getUri());
         Map<String, List<String>> params = decoder.getParameters();
         if (params.isEmpty()) {
-            decoder = new QueryStringDecoder(
-                    request.getContent().toString(Charset.defaultCharset()), false);
-            params = decoder.getParameters();
+            String body = request.getContent().toString(Charset.defaultCharset());
+            String[] dataArray = body.split("\\n");
+            for (String data: dataArray) {
+                decoder = new QueryStringDecoder(data, false);
+                params = decoder.getParameters();
+                if (!params.isEmpty()) {
+                    positions.add(decodePositionFromParams(params, channel));
+                }
+            }
+        }
+        else {
+            positions.add(decodePositionFromParams(params, channel));
         }
 
+        // Send response
+        if (channel != null) {
+            HttpResponse response = new DefaultHttpResponse(
+                    HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+            channel.write(response).addListener(ChannelFutureListener.CLOSE);
+        }
+
+        if (positions.size() < 1)
+            return null;
+        if (positions.size() == 1)
+            return positions.get(0);
+        return positions;
+    }
+
+    private Position decodePositionFromParams(Map<String, List<String>> params, Channel channel) throws Exception {
         // Create new position
         Position position = new Position();
         position.setProtocol(getProtocolName());
@@ -124,14 +151,6 @@ public class OsmAndProtocolDecoder extends BaseProtocolDecoder {
             position.set("description", params.get("desc").get(0));
         }
 
-        // Send response
-        if (channel != null) {
-            HttpResponse response = new DefaultHttpResponse(
-                    HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-            channel.write(response).addListener(ChannelFutureListener.CLOSE);
-        }
-
         return position;
     }
-
 }
