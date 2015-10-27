@@ -54,7 +54,9 @@ Ext.define('Traccar.view.MapController', {
 
                     var found = store.query('deviceId', data[i].deviceId);
                     if (found.getCount() > 0) {
-                        found.first().set(data[i]);
+                        var t = new Date(data[i].fixTime);
+                        if (found.first().get('fixTime').getTime() <= t.getTime())
+                            found.first().set(data[i]);
                     } else {
                         store.add(Ext.create('Traccar.model.Position', data[i]));
                     }
@@ -66,6 +68,8 @@ Ext.define('Traccar.view.MapController', {
 
                     if (data[i].deviceId in this.liveData) {
                         this.liveData[data[i].deviceId].setGeometry(geometry);
+                        var style = this.getMarkerStyle(Traccar.Style.mapLiveRadius, Traccar.Style.mapLiveColor, data[i].course, name);
+                        this.liveData[data[i].deviceId].setStyle(style);
                     } else {
                         var name = deviceStore.query('id', data[i].deviceId).first().get('name');
 
