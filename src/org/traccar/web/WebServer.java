@@ -99,6 +99,7 @@ public class WebServer {
 
     private void initApi() {
         ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        servletHandler.getSessionHandler().getSessionManager().getSessionCookieConfig().setMaxAge(86400*365);
         servletHandler.setContextPath("/api");
         servletHandler.addServlet(new ServletHolder(new AsyncServlet()), "/async/*");
         servletHandler.addServlet(new ServletHolder(new ServerServlet()), "/server/*");
