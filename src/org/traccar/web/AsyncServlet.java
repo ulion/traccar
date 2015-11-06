@@ -44,7 +44,7 @@ public class AsyncServlet extends BaseServlet {
 
     @Override
     protected boolean handle(String command, HttpServletRequest req, HttpServletResponse resp) throws Exception {
-        async(req.startAsync(), getUserId(req));
+        async(req.startAsync(), req.getSession(true).getId());
         return true;
     }
 
@@ -57,6 +57,7 @@ public class AsyncServlet extends BaseServlet {
 
         private boolean destroyed;
         private final long userId;
+        private final String sessionId;
         private final Set<Long> devices = new HashSet<>();
         private Timeout sessionTimeout;
         private Timeout requestTimeout;
@@ -69,8 +70,9 @@ public class AsyncServlet extends BaseServlet {
             }
         }
 
-        public AsyncSession(long userId, Collection<Long> devices) {
-            logEvent("create userId: " + userId + " devices: " + devices.size());
+        public AsyncSession(String sessionId, long userId, Collection<Long> devices) {
+            logEvent("create sessionId: " + sessionId + " devices: " + devices.size());
+            this.sessionId = sessionId;
             this.userId = userId;
             this.devices.addAll(devices);
 
@@ -114,7 +116,7 @@ public class AsyncServlet extends BaseServlet {
                 }
                 Context.getConnectionManager().removeListener(devices, dataListener);
                 synchronized (ASYNC_SESSIONS) {
-                    ASYNC_SESSIONS.remove(userId);
+                    ASYNC_SESSIONS.remove(sessionId);
                 }
             }
         };
@@ -175,17 +177,22 @@ public class AsyncServlet extends BaseServlet {
 
     }
 
-    private static final Map<Long, AsyncSession> ASYNC_SESSIONS = new HashMap<>();
+    private static final Map<String, AsyncSession> ASYNC_SESSIONS = new HashMap<>();
 
     public static void sessionRefreshUser(long userId) {
         synchronized (ASYNC_SESSIONS) {
-            ASYNC_SESSIONS.remove(userId);
+            Iterator<Entry<String, AsyncSession>> iterator = ASYNC_SESSIONS.entrySet().iterator();
+            while (iterator.hasNext()) {
+                if (iterator.next().getValue().userId == userId) {
+                    iterator.remove();
+                }
+            }
         }
     }
 
     public static void sessionRefreshDevice(long deviceId) {
         synchronized (ASYNC_SESSIONS) {
-            Iterator<Entry<Long, AsyncSession>> iterator = ASYNC_SESSIONS.entrySet().iterator();
+            Iterator<Entry<String, AsyncSession>> iterator = ASYNC_SESSIONS.entrySet().iterator();
             while (iterator.hasNext()) {
                 if (iterator.next().getValue().hasDevice(deviceId)) {
                     iterator.remove();
@@ -194,19 +201,20 @@ public class AsyncServlet extends BaseServlet {
         }
     }
 
-    private void async(final AsyncContext context, long userId) {
+    private void async(final AsyncContext context, String sessionId) {
 
         context.setTimeout(ASYNC_TIMEOUT);
         HttpServletRequest req = (HttpServletRequest) context.getRequest();
 
         synchronized (ASYNC_SESSIONS) {
 
-            if (Boolean.parseBoolean(req.getParameter("first")) || !ASYNC_SESSIONS.containsKey(userId)) {
+            if (Boolean.parseBoolean(req.getParameter("first")) || !ASYNC_SESSIONS.containsKey(sessionId)) {
+                long userId = getUserId(req);
                 Collection<Long> devices = Context.getPermissionsManager().allowedDevices(userId);
-                ASYNC_SESSIONS.put(userId, new AsyncSession(userId, devices));
+                ASYNC_SESSIONS.put(sessionId, new AsyncSession(sessionId, userId, devices));
             }
 
-            ASYNC_SESSIONS.get(userId).request(context);
+            ASYNC_SESSIONS.get(sessionId).request(context);
         }
     }
 
