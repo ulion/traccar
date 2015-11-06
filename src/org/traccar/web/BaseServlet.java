@@ -43,9 +43,10 @@ public abstract class BaseServlet extends HttpServlet {
         try {
             resp.setContentType("application/json");
             resp.setCharacterEncoding("UTF-8");
-            resp.setHeader("Access-Control-Allow-Origin", "*");
+            resp.setHeader("Access-Control-Allow-Origin", req.getHeader("Origin"));
             resp.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
             resp.setHeader("Access-Control-Allow-Methods", "GET, POST");
+            resp.setHeader("Access-Control-Allow-Credentials", "true");
             if (!handle(command, req, resp)) {
                 resp.sendError(HttpServletResponse.SC_BAD_REQUEST);
             }
