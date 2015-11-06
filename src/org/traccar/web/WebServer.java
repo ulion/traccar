@@ -74,6 +74,7 @@ public class WebServer {
 
     private void initWebApp() {
         ResourceHandler resourceHandler = new ResourceHandler();
+        resourceHandler.setEtags(true);
         resourceHandler.setResourceBase(config.getString("web.path"));
         if (config.getBoolean("web.debug")) {
             resourceHandler.setWelcomeFiles(new String[] {"debug.html"});
