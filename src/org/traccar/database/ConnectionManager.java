@@ -66,7 +66,9 @@ public class ConnectionManager {
 
     public synchronized void update(Position position) {
         long deviceId = position.getDeviceId();
-        positions.put(deviceId, position);
+        Position lastPosition = positions.get(deviceId);
+        if (lastPosition == null || position.getFixTime().compareTo(lastPosition.getFixTime()) > 0)
+            positions.put(deviceId, position);
         if (listeners.containsKey(deviceId)) {
             for (DataCacheListener listener : listeners.get(deviceId)) {
                 listener.onUpdate(position);
