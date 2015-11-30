@@ -211,6 +211,18 @@ public class AsyncServlet extends BaseServlet {
             if (Boolean.parseBoolean(req.getParameter("first")) || !ASYNC_SESSIONS.containsKey(sessionId)) {
                 long userId = getUserId(req);
                 Collection<Long> devices = Context.getPermissionsManager().allowedDevices(userId);
+                String deviceIds = req.getParameter("deviceIds");
+                if (deviceIds != null) {
+                    String[] deviceIdArray = deviceIds.split(",");
+                    Collection<Long> monitoredDevicesIds = new HashSet<>();
+                    for (String deviceId: deviceIdArray) {
+                        Long id = Long.valueOf(deviceId);
+                        if (devices.contains(id))
+                            monitoredDevicesIds.add(id);
+                    }
+                    if (monitoredDevicesIds.size() > 0)
+                        devices = monitoredDevicesIds;
+                }
                 ASYNC_SESSIONS.put(sessionId, new AsyncSession(sessionId, userId, devices));
             }
 
